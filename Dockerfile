@@ -7,12 +7,13 @@ RUN set -ex; \
 	\
 	apt-get update; \
 	apt-get install -y --no-install-recommends \
+        libmcrypt-dev \
 		libbz2-dev \
 		libfreetype6-dev \
 		libjpeg-dev \
 		libpng-dev; \
 	docker-php-ext-configure gd --with-freetype-dir=/usr --with-jpeg-dir=/usr --with-png-dir=/usr; \
-	docker-php-ext-install bz2 gd mysqli zip; \
+	docker-php-ext-install mbstring mcrypt bz2 gd mysqli zip; \
 	\
 	apt-mark auto '.*' > /dev/null; \
 	apt-mark manual $savedAptMark; \
