@@ -53,5 +53,5 @@ COPY php.ini /usr/local/etc/php/conf.d/php-phpmyadmin.ini
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
-ENTRYPOINT [ "/docker-entrypoint.sh" ]
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["apache2-foreground"]
