@@ -28,6 +28,26 @@ RUN set -ex; \
 	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
 	rm -rf /var/lib/apt/lists/*
 
+# set recommended PHP.ini settings
+ENV MAX_EXECUTION_TIME 600
+ENV MEMORY_LIMIT 512M
+ENV UPLOAD_LIMIT 2048K
+RUN set -ex; \
+    { \
+        echo 'session.cookie_httponly=1'; \
+        echo 'session.hash_function=1'; \
+        echo 'session.use_strict_mode=1'; \
+    } > $PHP_INI_DIR/conf.d/session-strict.ini; \
+    \
+    { \
+        echo 'allow_url_fopen=Off'; \
+        echo 'max_execution_time=${MAX_EXECUTION_TIME}'; \
+        echo 'max_input_vars=10000'; \
+        echo 'memory_limit=${MEMORY_LIMIT}'; \
+        echo 'post_max_size=${UPLOAD_LIMIT}'; \
+        echo 'upload_max_filesize=${UPLOAD_LIMIT}'; \
+    } > $PHP_INI_DIR/conf.d/phpmyadmin-misc.ini
+
 # Calculate download URL
 ENV VERSION 4.0.10.20
 ENV SHA256 4341a44a2fd40b3620492f5d12df9f24318e323bb3c35d0e64adc811af31fb02
@@ -68,7 +88,6 @@ RUN set -ex; \
 
 # Copy configuration
 COPY config.inc.php /etc/phpmyadmin/config.inc.php
-COPY php.ini /usr/local/etc/php/conf.d/php-phpmyadmin.ini
 
 # Copy main script
 COPY docker-entrypoint.sh /docker-entrypoint.sh
