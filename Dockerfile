@@ -1,7 +1,5 @@
 FROM php:5.4.45-apache
 
-EXPOSE 80
-
 # Install dependencies
 RUN set -ex; \
 	\
@@ -29,21 +27,43 @@ RUN set -ex; \
 	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
 	rm -rf /var/lib/apt/lists/*
 
+# Calculate download URL
 ENV VERSION 4.0.10.20
-
 ENV SHA256 4341a44a2fd40b3620492f5d12df9f24318e323bb3c35d0e64adc811af31fb02
-
 ENV URL https://files.phpmyadmin.net/phpMyAdmin/${VERSION}/phpMyAdmin-${VERSION}-all-languages.tar.gz
 
-RUN curl -fsSL -o phpMyAdmin.tar.xz $URL; \
+# Download tarball, verify it using gpg and extract
+RUN set -ex; \
+    \
+    savedAptMark="$(apt-mark showmanual)"; \
+    \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        gnupg \
+        dirmngr; \
+    \
+	export GNUPGHOME="$(mktemp -d)"; \
+    export GPGKEY="3D06A59ECE730EB71B511C17CE752F178259BD92"; \
+    curl -fsSL -o phpMyAdmin.tar.xz $URL; \
+    curl -fsSL -o phpMyAdmin.tar.xz.asc $URL.asc; \
     echo "$SHA256 *phpMyAdmin.tar.xz" | sha256sum -c -; \
-    tar -xf phpMyAdmin.tar.xz -C /var/www/html --strip-components=1; \
-    mkdir -p /var/www/html/tmp; \
+    gpg --batch --keyserver ha.pool.sks-keyservers.net --recv-keys "$GPGKEY" \
+        || gpg --batch --keyserver ipv4.pool.sks-keyservers.net --recv-keys "$GPGKEY" \
+        || gpg --batch --keyserver keys.gnupg.net --recv-keys "$GPGKEY" \
+        || gpg --batch --keyserver pgp.mit.edu --recv-keys "$GPGKEY" \
+        || gpg --batch --keyserver keyserver.pgp.com --recv-keys "$GPGKEY"; \
+    gpg --batch --verify phpMyAdmin.tar.xz.asc phpMyAdmin.tar.xz; \
+	tar -xf phpMyAdmin.tar.xz -C /var/www/html --strip-components=1; \
+	mkdir -p /var/www/html/tmp; \
     chown www-data:www-data /var/www/html/tmp; \
-    rm -rf /var/www/html/setup/ /var/www/html/examples/ /var/www/html/RELEASE-DATE-${VERSION}; \
+    rm -r "$GNUPGHOME" phpMyAdmin.tar.xz phpMyAdmin.tar.xz.asc; \
+    rm -rf /var/www/html/setup/ /var/www/html/examples/ /var/www/html/composer.json /var/www/html/RELEASE-DATE-$VERSION; \
     sed -i "s@define('CONFIG_DIR'.*@define('CONFIG_DIR', '/etc/phpmyadmin/');@" /var/www/html/libraries/vendor_config.php; \
-    # Add directory for sessions to allow session persistence
-    mkdir /sessions;
+    \
+    apt-mark auto '.*' > /dev/null; \
+    apt-mark manual $savedAptMark; \
+    apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
+    rm -rf /var/lib/apt/lists/
 
 # Copy configuration
 COPY config.inc.php /etc/phpmyadmin/config.inc.php
